@@ -31,8 +31,6 @@ public class TransactionController {
     private final TransactionStateMachine fsm;
     private final SignatureService signatureService;
 
-    // FIX 1: Removed AesGcmService from the constructor as it is no longer used here.
-    // The @Convert annotation on the Transaction entity handles encryption transparently.
     public TransactionController(TransactionRepository txRepository, UserRepository userRepository,
                                  SignedActionRepository signedActionRepository, TransactionStateMachine fsm,
                                  SignatureService signatureService) {
@@ -50,49 +48,78 @@ public class TransactionController {
         String description = (String) request.get("description");
 
         Transaction tx = new Transaction();
-        
-        // FIX 2: Wrapped the UUID variables directly in Objects.requireNonNull() 
-        // to satisfy Spring Data JPA's strict @NonNull parameter expectations.
         tx.setBuyer(userRepository.getReferenceById(Objects.requireNonNull(buyerId)));
         tx.setVendor(userRepository.getReferenceById(Objects.requireNonNull(vendorId)));
-        
-        tx.setDescriptionEnc(description); 
+        tx.setDescriptionEnc(description);
         tx.setStatus(TransactionStatus.PAYMENT_CONFIRMED);
 
         txRepository.save(tx);
-        return ResponseEntity.status(201).body(Map.of("transactionId", tx.getId().toString(), "status", tx.getStatus().name()));
+        return ResponseEntity.status(201).body(Map.of(
+                "transactionId", tx.getId().toString(),
+                "status", tx.getStatus().name()
+        ));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> getTransaction(@PathVariable UUID id, Authentication auth) {
+        Transaction tx = txRepository.findById(Objects.requireNonNull(id))
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
+        return ResponseEntity.ok(Map.of(
+                "transactionId", tx.getId().toString(),
+                "status", tx.getStatus().name(),
+                "description", Objects.requireNonNullElse(tx.getDescriptionEnc(), ""),
+                "createdAt", tx.getCreatedAt().toString()
+        ));
     }
 
     @PostMapping("/{id}/ship")
     public ResponseEntity<Map<String, String>> ship(@PathVariable UUID id, Authentication auth) {
         Transaction tx = txRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
-        
         fsm.validateTransition(tx.getStatus(), TransactionStatus.SHIPPING);
-        
         tx.setStatus(TransactionStatus.SHIPPING);
         txRepository.save(tx);
         return ResponseEntity.ok(Map.of("status", tx.getStatus().name()));
     }
 
-    @PostMapping("/{id}/confirm-delivery")
-    public ResponseEntity<Map<String, String>> confirmDelivery(@PathVariable UUID id, @RequestBody Map<String, String> request, Authentication auth) {
+    @PostMapping("/{id}/deliver")
+    public ResponseEntity<Map<String, Object>> deliver(@PathVariable UUID id, Authentication auth) {
         Transaction tx = txRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
-        
+        fsm.validateTransition(tx.getStatus(), TransactionStatus.DELIVERED);
+        tx.setStatus(TransactionStatus.DELIVERED);
+        tx.setDeliveredAt(Instant.now());
+        txRepository.save(tx);
+        return ResponseEntity.ok(Map.of(
+                "status", tx.getStatus().name(),
+                "deliveredAt", tx.getDeliveredAt().toString()
+        ));
+    }
+
+    @PostMapping("/{id}/confirm-delivery")
+    public ResponseEntity<Map<String, String>> confirmDelivery(@PathVariable UUID id,
+                                                               @RequestBody Map<String, String> request,
+                                                               Authentication auth) {
+        Transaction tx = txRepository.findById(Objects.requireNonNull(id))
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
+
         String buyerIdStr = Objects.requireNonNull(auth.getName());
-        
-        // FIX 3: Wrapped the UUID.fromString() call directly in Objects.requireNonNull()
         User buyer = userRepository.findById(Objects.requireNonNull(UUID.fromString(buyerIdStr)))
                 .orElseThrow();
 
         fsm.validateTransition(tx.getStatus(), TransactionStatus.ACCEPTED);
 
-        String signatureBase64 = request.get("signature");
-        String payload = tx.getId().toString() + ":" + Instant.now().getEpochSecond(); 
-        
+        // Non-repudiation: Verify ECDSA signature (Mitigates Threat T9)
+        String signatureBase64 = Objects.requireNonNull(request.get("signature"));
+        String timestamp = Objects.requireNonNull(request.get("timestamp"));
+        String payload = tx.getId().toString() + ":" + timestamp;
+
         byte[] sigBytes = Base64.getDecoder().decode(signatureBase64);
-        boolean isValid = signatureService.verify(payload.getBytes(StandardCharsets.UTF_8), sigBytes, signatureService.pemToPublicKey(buyer.getPublicKey()));
+        boolean isValid = signatureService.verify(
+                payload.getBytes(StandardCharsets.UTF_8),
+                sigBytes,
+                signatureService.pemToPublicKey(buyer.getPublicKey())
+        );
 
         if (!isValid) {
             throw new IllegalArgumentException("Invalid delivery confirmation signature");
