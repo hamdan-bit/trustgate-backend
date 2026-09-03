@@ -38,5 +38,25 @@ public class SignedAction {
         signedAt = Instant.now();
     }
 
-    // Getters and Setters omitted for brevity.
+    // --- Getters and Setters ---
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public Transaction getTransaction() { return transaction; }
+    public void setTransaction(Transaction transaction) { this.transaction = transaction; }
+
+    public User getActor() { return actor; }
+    public void setActor(User actor) { this.actor = actor; }
+
+    public SignedActionType getActionType() { return actionType; }
+    public void setActionType(SignedActionType actionType) { this.actionType = actionType; }
+
+    public String getPayload() { return payload; }
+    public void setPayload(String payload) { this.payload = payload; }
+
+    public byte[] getSignature() { return signature; }
+    public void setSignature(byte[] signature) { this.signature = signature; }
+
+    public Instant getSignedAt() { return signedAt; }
+    public void setSignedAt(Instant signedAt) { this.signedAt = signedAt; }
 }

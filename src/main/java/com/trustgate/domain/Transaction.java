@@ -26,7 +26,7 @@ public class Transaction {
     private BigDecimal amount;
 
     @Convert(converter = AesGcmStringConverter.class)
-    @Column(name = "description_enc", nullable = false)
+    @Column(name = "description_enc", nullable = false, columnDefinition = "BYTEA")
     private String descriptionEnc;
 
     @Enumerated(EnumType.STRING)
@@ -53,5 +53,31 @@ public class Transaction {
         updatedAt = Instant.now();
     }
 
-    // Getters and Setters omitted for brevity.
+    // --- Getters and Setters ---
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public User getBuyer() { return buyer; }
+    public void setBuyer(User buyer) { this.buyer = buyer; }
+
+    public User getVendor() { return vendor; }
+    public void setVendor(User vendor) { this.vendor = vendor; }
+
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+
+    public String getDescriptionEnc() { return descriptionEnc; }
+    public void setDescriptionEnc(String descriptionEnc) { this.descriptionEnc = descriptionEnc; }
+
+    public TransactionStatus getStatus() { return status; }
+    public void setStatus(TransactionStatus status) { this.status = status; }
+
+    public Instant getDeliveredAt() { return deliveredAt; }
+    public void setDeliveredAt(Instant deliveredAt) { this.deliveredAt = deliveredAt; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }
