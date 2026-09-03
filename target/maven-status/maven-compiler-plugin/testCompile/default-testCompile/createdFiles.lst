@@ -1,0 +1,4 @@
+com/trustgate/audit/AuditLogServiceTest.class
+com/trustgate/fsm/TransactionStateMachineTest.class
+com/trustgate/crypto/CryptoServicesUnitTest.class
+com/trustgate/persistence/AesGcmPersistenceIntegrationTest.class

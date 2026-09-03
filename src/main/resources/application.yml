@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: trustgate-backend
+  
+  # Temporarily exclude DB auto-configuration for Phase 1 scaffolding.
+  # This ensures the app starts without a running Postgres instance.
+  # Will be removed in Phase 2.
+    datasource:
+    url: jdbc:postgresql://localhost:5432/trustgate
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+trustgate:
+  keystore:
+    path: classpath:keystore.p12
+    password: changeit
+  jwt:
+    expiration-minutes: 30
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+server:
+  port: 8080
